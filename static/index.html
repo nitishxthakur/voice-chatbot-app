@@ -1,19 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🎙️ Mic Test</title>
+  <meta charset="UTF-8" />
+  <title>🎙️ Chat with ChatGPT</title>
 </head>
 <body>
-  <h2>🎧 Mic Test – Record & Playback</h2>
-  <button id="start">Start Recording</button>
-  <button id="stop" disabled>Stop Recording</button>
-  <audio id="playback" controls></audio>
+  <h2>🎤 Chat with ChatGPT</h2>
+
+  <button id="start">🎙️ Start Recording</button>
+  <button id="stop" disabled>⏹️ Stop Recording</button>
+  <button id="listen" disabled>🔊 Listen Reply</button>
+
+  <p><strong>You said:</strong> <span id="transcript">...</span></p>
+  <p><strong>GPT replied:</strong> <span id="reply">...</span></p>
+  <audio id="audioReply" controls style="display: none;"></audio>
 
   <script>
     const startBtn = document.getElementById('start');
     const stopBtn = document.getElementById('stop');
-    const playback = document.getElementById('playback');
+    const listenBtn = document.getElementById('listen');
+    const transcript = document.getElementById('transcript');
+    const reply = document.getElementById('reply');
+    const audio = document.getElementById('audioReply');
 
     let recorder, stream, chunks = [];
 
@@ -24,10 +32,21 @@
 
       recorder.ondataavailable = e => chunks.push(e.data);
 
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        playback.src = URL.createObjectURL(blob);
-        playback.style.display = 'block';
+        const mp3Blob = await convertBlobToMp3(blob);
+        const formData = new FormData();
+        formData.append('file', mp3Blob, 'voice.mp3');
+
+        const res = await fetch('/chat/', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        transcript.innerText = data.transcription;
+        reply.innerText = data.reply_text;
+        audio.src = data.voice_url;
+        audio.style.display = 'block';
+        listenBtn.disabled = false;
       };
 
       recorder.start();
@@ -37,10 +56,20 @@
 
     stopBtn.onclick = () => {
       recorder.stop();
-      stream.getTracks().forEach(track => track.stop());
       startBtn.disabled = false;
       stopBtn.disabled = true;
     };
+
+    listenBtn.onclick = () => {
+      audio.play();
+    };
+
+    // Optional helper to convert webm to mp3 (simulate)
+    async function convertBlobToMp3(blob) {
+      // Browsers can’t actually convert to real mp3 without backend.
+      // We rename the blob to 'audio/mp3' and hope server handles it
+      return new Blob([blob], { type: 'audio/mp3' });
+    }
   </script>
 </body>
 </html>
