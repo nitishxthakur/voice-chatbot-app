@@ -1,46 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Voice Chat with GPT</title>
+  <meta charset="UTF-8">
+  <title>🎤 Voice Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f4f4f4;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #startBtn { background-color: #4CAF50; color: white; }
+    #stopBtn { background-color: #f44336; color: white; }
+    #listenBtn { background-color: #2196F3; color: white; }
+    p { margin: 10px; }
+    audio { margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h1>🎤 Speak to ChatGPT</h1>
-  <button onclick="startRecording()">Start Recording</button>
-  <p id="responseText"></p>
-  <audio id="audioPlayer" controls></audio>
+  <h2>🎤 Talk to ChatGPT</h2>
 
-<script>
-let mediaRecorder, audioChunks;
+  <button id="startBtn">🎙️ Start Recording</button>
+  <button id="stopBtn" disabled>⏹️ Stop Recording</button>
+  <button id="listenBtn" disabled>🔊 Listen Reply</button>
 
-function startRecording() {
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+  <p><strong>You said:</strong> <span id="transcript">...</span></p>
+  <p><strong>GPT replied:</strong> <span id="reply">...</span></p>
+  <audio id="audioReply" controls style="display:none;"></audio>
 
-    mediaRecorder.ondataavailable = event => {
-      audioChunks.push(event.data);
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const listenBtn = document.getElementById('listenBtn');
+    const transcript = document.getElementById('transcript');
+    const reply = document.getElementById('reply');
+    const audio = document.getElementById('audioReply');
+
+    let mediaRecorder, chunks = [];
+
+    startBtn.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/mp3' });
+        const formData = new FormData();
+        formData.append('file', blob, 'voice.mp3');
+
+        // Send to FastAPI backend
+        const res = await fetch('/chat/', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        transcript.innerText = data.transcription;
+        reply.innerText = data.reply_text;
+        audio.src = data.voice_url;
+        audio.style.display = "block";
+        listenBtn.disabled = false;
+      };
+
+      mediaRecorder.start();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      transcript.innerText = "...";
+      reply.innerText = "...";
+      listenBtn.disabled = true;
+      audio.style.display = "none";
     };
 
-    mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-      const formData = new FormData();
-      formData.append("file", audioBlob, "input.mp3");
-
-      const response = await fetch("/chat/", {
-        method: "POST",
-        body: formData
-      });
-
-      const result = await response.json();
-      document.getElementById("responseText").textContent = result.reply_text;
-      document.getElementById("audioPlayer").src = result.voice_url;
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
     };
 
-    mediaRecorder.start();
-    setTimeout(() => mediaRecorder.stop(), 4000);
-  });
-}
-</script>
+    listenBtn.onclick = () => {
+      audio.play();
+    };
+  </script>
 </body>
 </html>
