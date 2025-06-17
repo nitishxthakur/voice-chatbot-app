@@ -54,19 +54,29 @@
       mediaRecorder.ondataavailable = e => chunks.push(e.data);
 
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/mp3' });
+        const blob = new Blob(chunks, { type: 'audio/webm' });
         const formData = new FormData();
-        formData.append('file', blob, 'voice.mp3');
+        formData.append('file', blob, 'voice.webm');
 
-        // Send to FastAPI backend
-        const res = await fetch('/chat/', { method: 'POST', body: formData });
-        const data = await res.json();
+        try {
+          const res = await fetch('/chat/', { method: 'POST', body: formData });
+          const data = await res.json();
 
-        transcript.innerText = data.transcription;
-        reply.innerText = data.reply_text;
-        audio.src = data.voice_url;
-        audio.style.display = "block";
-        listenBtn.disabled = false;
+          transcript.innerText = data.transcription || "[No transcription]";
+          reply.innerText = data.reply_text || "[No reply]";
+          if (data.voice_url) {
+            audio.src = data.voice_url;
+            audio.style.display = "block";
+            listenBtn.disabled = false;
+          } else {
+            audio.style.display = "none";
+            listenBtn.disabled = true;
+          }
+        } catch (err) {
+          console.error("Error during fetch:", err);
+          transcript.innerText = "[Error]";
+          reply.innerText = "[Error]";
+        }
       };
 
       mediaRecorder.start();
