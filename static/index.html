@@ -2,22 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Voice Chat with GPT</title>
+  <title>🎙️ Mic Test</title>
 </head>
 <body>
-  <h2>🎤 Talk to GPT</h2>
-  <button id="startBtn">🎙️ Start Recording</button>
-  <button id="stopBtn" disabled>⏹️ Stop Recording</button>
-  <p><strong>You said:</strong> <span id="transcript">...</span></p>
-  <p><strong>GPT replied:</strong> <span id="reply">...</span></p>
-  <audio id="audioReply" controls style="display: none;"></audio>
+  <h2>🎧 Mic Test – Record & Playback</h2>
+  <button id="start">Start Recording</button>
+  <button id="stop" disabled>Stop Recording</button>
+  <audio id="playback" controls></audio>
 
   <script>
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const transcript = document.getElementById('transcript');
-    const reply = document.getElementById('reply');
-    const audio = document.getElementById('audioReply');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const playback = document.getElementById('playback');
 
     let recorder, stream, chunks = [];
 
@@ -27,30 +23,11 @@
       chunks = [];
 
       recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = async () => {
+
+      recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('file', blob, 'voice.webm');
-
-        try {
-          const res = await fetch('/chat/', { method: 'POST', body: formData });
-          const data = await res.json();
-
-          console.log("📥 Server reply:", data);
-
-          transcript.innerText = data.transcription || "[no text]";
-          reply.innerText = data.reply_text || "[no reply]";
-          if (data.voice_url) {
-            audio.src = data.voice_url;
-            audio.style.display = "block";
-          } else {
-            audio.style.display = "none";
-          }
-        } catch (err) {
-          console.error("❌ Error sending voice to server", err);
-          transcript.innerText = "[error]";
-          reply.innerText = "[error]";
-        }
+        playback.src = URL.createObjectURL(blob);
+        playback.style.display = 'block';
       };
 
       recorder.start();
